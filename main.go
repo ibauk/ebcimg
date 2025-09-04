@@ -28,10 +28,10 @@ import (
 
 	_ "embed"
 
-	"github.com/adrium/goheif"
+	"github.com/jdeng/goheif"
 )
 
-const programversion = "ebcimg v1.1 - Image helper for ScoreMaster"
+const programversion = "ebcimg v1.3 - Image helper for ScoreMaster"
 
 var showVersion = flag.Bool("v", false, "Show version info")
 
@@ -91,15 +91,22 @@ func newWriterExif(w io.Writer, exif []byte) (io.Writer, error) {
 func isHeic(fi *os.File, fo *os.File) bool {
 
 	fi.Seek(0, 0)
-	exif, _ := goheif.ExtractExif(fi)
+	exif, err := goheif.ExtractExif(fi)
+	if err != nil {
+		//log.Printf("isHeic-exif: %v\n", err)
+	}
 
 	img, err := goheif.Decode(fi)
 	if err != nil {
+		//log.Printf("isHeic-decode: %v\n", err)
 		return false
 	}
 
 	w, _ := newWriterExif(fo, exif)
 	err = jpeg.Encode(w, img, &Options)
+	if err != nil {
+		//log.Printf("isHeic-encode: %v\n", err)
+	}
 	return err == nil
 
 }
@@ -173,9 +180,12 @@ func main() {
 func makeFailImage(f *os.File, x string) {
 
 	log.Printf("Making fail image for %v\n", x)
-	msg := "Image file cannot be decoded!"
-	msg2 := "Please refer to the original email."
-	width := 360
+	msg := "ScoreMaster can't process this image!"
+	msg2 := "You must view the image in the email itself"
+	msg3 := "A new version of ScoreMaster is needed for this format"
+	msg4 := "but for now you'll have to continue inspecting emails"
+	msg5 := "Sorry about that :("
+	width := 400
 	height := 240
 
 	upLeft := image.Point{0, 0}
@@ -185,6 +195,7 @@ func makeFailImage(f *os.File, x string) {
 
 	// Colors are defined by Red, Green, Blue, Alpha uint8 values.
 	cyan := color.RGBA{100, 200, 200, 0xff}
+	red := color.RGBA{255, 0, 0, 255}
 
 	// Set color for each pixel.
 	for x := 0; x < width; x++ {
@@ -193,12 +204,15 @@ func makeFailImage(f *os.File, x string) {
 		}
 	}
 
-	if err := addText(img, msg, image.Point{15, 50}, color.Black, 24); err != nil {
+	if err := addText(img, msg, image.Point{15, 50}, color.Black, 22); err != nil {
 		log.Fatalf("Error adding text: %v", err)
 	}
-	addText(img, x, image.Point{15, 100}, color.Black, 18)
-	addText(img, msg2, image.Point{15, 150}, color.Black, 18)
-	addText(img, programversion, image.Point{15, 200}, color.Black, 12)
+	addText(img, x, image.Point{15, 90}, color.Black, 14)
+	addText(img, msg2, image.Point{10, 130}, red, 20)
+	addText(img, msg3, image.Point{15, 160}, color.Black, 14)
+	addText(img, msg4, image.Point{15, 175}, color.Black, 14)
+	addText(img, msg5, image.Point{15, 190}, color.Black, 14)
+	addText(img, programversion, image.Point{15, 220}, color.Black, 12)
 
 	err := jpeg.Encode(f, img, &Options)
 	if err != nil {
